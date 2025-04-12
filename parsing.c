@@ -8,7 +8,7 @@
 int parsing_conf(stparsing_conf *CONFIG) {
     FILE *file = fopen(CONFFILE, "r");
     if (!file) {
-        perror("Erro ao abrir link.json");
+        perror("Error opening link.json");
         return 1;
     }
     
@@ -18,7 +18,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
 
     char *data = malloc(length + 1);
     if (!data) {
-        perror("Erro ao alocar memória");
+        perror("Error alocating memory - data");
         fclose(file);
         return 1;
     }
@@ -34,7 +34,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
     free(data);
 
     if (!parsed_json) {
-        fprintf(stderr, "Erro ao fazer parse do JSON.\n");
+        fprintf(stderr, "Error JSON parsing\n");
         return 1;
     }
 
@@ -81,13 +81,5 @@ int parsing_conf(stparsing_conf *CONFIG) {
 
     json_object_put(parsed_json); //free parsed_json
 
-    /*
-    printf("SID: %s\n", CONFIG->sid);
-    printf("Link: %s\n", CONFIG->linkname);
-    printf("Host: %s\n", CONFIG->host);
-    printf("Port: %s\n", CONFIG->port);
-    printf("Pass: %s\n", CONFIG->password);
-    printf("Proto: %s\n", CONFIG->protocol);
-    */
     return 0;
 }
