@@ -1,0 +1,9 @@
+{
+    "sid": "002",
+    "linkname": "apt322.mylink",
+    "host": "127.0.0.1",
+    "port": "6900",
+    "password": "minhasenha",
+    "protocol": "unrealircd"
+}
+
