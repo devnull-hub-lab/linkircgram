@@ -13,7 +13,7 @@ int main() {
     parsing_conf(&CONFIG);
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("socket");
+        perror("socket-error");
         return 1;
     }
 
@@ -29,10 +29,13 @@ int main() {
     snprintf(buffer, sizeof(buffer), "PASS :%s\r\n", CONFIG.password);
     send(sock, buffer, strlen(buffer), 0);
 
-    snprintf(buffer, sizeof(buffer), "PROTOCTL SJOIN SJ3 NOQUIT NICKv2 VL UMODE2 PROTOCTL NICKIP EAUTH=%s SID=%s VHP ESVID EXTSWHOIS\r\n", CONFIG.linkname, CONFIG.sid);
+    snprintf(buffer, sizeof(buffer), "PROTOCTL EAUTH=%s SID=%s\r\n", CONFIG.linkname, CONFIG.sid);
     send(sock, buffer, strlen(buffer), 0);
 
-    snprintf(buffer, sizeof(buffer), "SERVER %s 1 U6-h6e-001 :LinkIRCGram\r\n", CONFIG.linkname);
+    snprintf(buffer, sizeof(buffer), "PROTOCTL SJOIN SJ3 CLK NOQUIT NICKv2 VL UMODE2 PROTOCTL NICKIP VHP ESVID EXTSWHOIS TKLEXT2 NEXTBANS\r\n");
+    send(sock, buffer, strlen(buffer), 0);
+
+    snprintf(buffer, sizeof(buffer), "SERVER %s 1 U6-linkircgram-%s :LinkIRCGram\r\n", CONFIG.linkname, CONFIG.sid);
     send(sock, buffer, strlen(buffer), 0);
 
     sleep(2); //Wait server buffer response
@@ -43,8 +46,8 @@ int main() {
 
     generate_uid(CONFIG.sid, uid);
     
-    //TODO: data will be filled after fetch each telegram user id
-    UID[count_uid_list].hop       = 0;
+    //TODO: Just fake user to test.
+    //Data will be filled after fetch each telegram user id
     UID[count_uid_list].timestamp = (long)time(NULL);
     UID[count_uid_list].nick      = strdup("nick1");
     UID[count_uid_list].user      = strdup("user1");
@@ -61,17 +64,21 @@ int main() {
     sleep(1);
 
     time_t timestamp = time(NULL);
-    len = snprintf(buffer, sizeof(buffer), "SJOIN %ld #testchannel +nt :%s\r\n", (long)timestamp, UID[count_uid_list].uid);
+    len = snprintf(buffer, sizeof(buffer), "SJOIN %ld %s +nt :%s\r\n", (long)timestamp, CONFIG.channel, UID[count_uid_list].uid);
     send(sock, buffer, len, 0);
 
     count_uid_list++;
 
     while (1) {
         len = recv(sock, buffer, sizeof(buffer) -1, 0);
+        buffer[len] = '\0';
         if (len <= 0) {
             printf("[!] Connection Lost\n");
             break;
         }
+
+        if (strncmp(CONFIG.debug, "true", 4) == 0)
+            printf("[Server] %s\n", buffer);
 
         if (strncmp(buffer, "PING", 4) == 0) {
             char pong_reply[256];
@@ -104,15 +111,13 @@ int main() {
 //---------------------------------------------------------------------------------------
 
 int spawn_user(int sock, char *buffer, size_t bufferlen, stuid_structure *UID, int index) {
-    time_t timestamp = time(NULL);
     
-    if (timestamp == ((time_t) -1)) {
-        perror("Erro ao obter o timestamp");
-        return 1;
-    }
+    time_t timestamp = time(NULL);
 
-    int len = snprintf(buffer, bufferlen, "UID %s %d %ld %s %s %s 0 +iwx %s Clk-BA0161F4.host * :Nickname1 Registration Service\r\n",
-                                 UID[index].nick, UID[index].hop, (long)timestamp, UID[index].user, UID[index].host, UID[index].uid, UID[index].vhost);
+    //UnrealIRCD
+    //nickname - hop - timestamp - username - hostname - uid - servicetimestamp - umodes - vhost - cloakedhost - ip - gecos
+    int len = snprintf(buffer, bufferlen, "UID %s 1 %ld %s %s %s 0 +iwx %s Clk-BA0161F4.host * :Nickname1 Registration Service\r\n",
+                                 UID[index].nick, (long)timestamp, UID[index].user, UID[index].host, UID[index].uid, UID[index].vhost);
 
     send(sock, buffer, len, 0);
 
