@@ -59,6 +59,7 @@ int main() {
     snprintf(vhost_buff, sizeof(vhost_buff), "%s.over.telegram", UID[count_uid_list].nick);
     UID[count_uid_list].vhost = strdup(vhost_buff);
 
+    //UID ...
     spawn_user(sock, buffer, sizeof(buffer), UID, count_uid_list);
 
     sleep(1);
@@ -119,6 +120,9 @@ int spawn_user(int sock, char *buffer, size_t bufferlen, stuid_structure *UID, i
     int len = snprintf(buffer, bufferlen, "UID %s 1 %ld %s %s %s 0 +iwx %s Clk-BA0161F4.host * :Nickname1 Registration Service\r\n",
                                  UID[index].nick, (long)timestamp, UID[index].user, UID[index].host, UID[index].uid, UID[index].vhost);
 
+    send(sock, buffer, len, 0);
+
+    len = snprintf(buffer, bufferlen, "MD client %s creationtime :%ld\r\n", UID[index].uid, (long)timestamp);
     send(sock, buffer, len, 0);
 
     return 0;

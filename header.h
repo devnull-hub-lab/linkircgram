@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>       //unix timestamp
-#include <unistd.h>     // close(), sleep()
-#include <sys/socket.h> // socket(), connect(), send(), recv()
-#include <netinet/in.h> // sockaddr_in
-#include <arpa/inet.h>  // inet_addr()
+#include <time.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define CONFFILE "link.json"
 
@@ -40,12 +40,15 @@ typedef struct {
 
 typedef struct {
     char sid[SIDLEN];
-    char linkname[50];
+    char linkname[50]; //TODO: check length later
     char host[HOSTLEN];
     char port[PORTLEN];
-    char password[50];
+    char password[50]; //TODO: check length later
     char protocol[15];
     char channel[CHANLEN];
+    char bot[10]; //TODO: check length later
+    char gid[25]; //TODO: check length later
+    char topic[10]; //TODO: check length later
     char debug[6];
 } stparsing_conf;
 
@@ -54,3 +57,4 @@ void generate_uid (char *, char *uid);
 int  parsing_conf (stparsing_conf *CONFIG);
 
 #endif
+

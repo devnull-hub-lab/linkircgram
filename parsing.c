@@ -30,6 +30,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
     struct json_object *parsed_json = json_tokener_parse(data);
     
     struct json_object *jsid, *jlinkname, *jhost, *jport, *jpassword, *jprotocol, *jchannel, *jdebug;
+    struct json_object *jbot, *jgid, *jtopic;
 
     free(data);
 
@@ -38,13 +39,18 @@ int parsing_conf(stparsing_conf *CONFIG) {
         return 1;
     }
 
-    json_object_object_get_ex(parsed_json, "sid",      &jsid);
-    json_object_object_get_ex(parsed_json, "linkname", &jlinkname);
-    json_object_object_get_ex(parsed_json, "host",     &jhost);
-    json_object_object_get_ex(parsed_json, "port",     &jport);
-    json_object_object_get_ex(parsed_json, "password", &jpassword);
-    json_object_object_get_ex(parsed_json, "protocol", &jprotocol);
-    json_object_object_get_ex(parsed_json, "channel",  &jchannel);
+    json_object_object_get_ex(parsed_json, "irc-sid",      &jsid);
+    json_object_object_get_ex(parsed_json, "irc-linkname", &jlinkname);
+    json_object_object_get_ex(parsed_json, "irc-host",     &jhost);
+    json_object_object_get_ex(parsed_json, "irc-port",     &jport);
+    json_object_object_get_ex(parsed_json, "irc-password", &jpassword);
+    json_object_object_get_ex(parsed_json, "irc-protocol", &jprotocol);
+    json_object_object_get_ex(parsed_json, "irc-channel",  &jchannel);
+
+    json_object_object_get_ex(parsed_json, "telegram-bot",   &jbot);
+    json_object_object_get_ex(parsed_json, "telegram-gid",   &jgid);
+    json_object_object_get_ex(parsed_json, "telegram-topic", &jtopic);
+
     json_object_object_get_ex(parsed_json, "debug",    &jdebug);
     
     const char *isnotnull;
@@ -77,6 +83,18 @@ int parsing_conf(stparsing_conf *CONFIG) {
     if (isnotnull)
         strncpy(CONFIG->channel, json_object_get_string(jchannel), sizeof(CONFIG->channel) - 1);
 
+    isnotnull = json_object_get_string(jbot);
+    if (isnotnull)
+        strncpy(CONFIG->bot, json_object_get_string(jbot), sizeof(CONFIG->bot) - 1);
+
+    isnotnull = json_object_get_string(jgid);
+    if (isnotnull)
+        strncpy(CONFIG->gid, json_object_get_string(jgid), sizeof(CONFIG->gid) - 1);
+
+    isnotnull = json_object_get_string(jtopic);
+    if (isnotnull)
+        strncpy(CONFIG->topic, json_object_get_string(jtopic), sizeof(CONFIG->topic) - 1);
+
     isnotnull = json_object_get_string(jdebug);
     if (isnotnull)
         strncpy(CONFIG->debug, json_object_get_string(jdebug), sizeof(CONFIG->debug) - 1);
@@ -89,6 +107,9 @@ int parsing_conf(stparsing_conf *CONFIG) {
     CONFIG->password[sizeof(CONFIG->password) - 1] = '\0';
     CONFIG->protocol[sizeof(CONFIG->protocol) - 1] = '\0';
     CONFIG->channel [sizeof(CONFIG->channel)  - 1] = '\0';
+    CONFIG->bot     [sizeof(CONFIG->bot)      - 1] = '\0';
+    CONFIG->gid     [sizeof(CONFIG->gid)      - 1] = '\0';
+    CONFIG->topic   [sizeof(CONFIG->topic)    - 1] = '\0';
     CONFIG->debug   [sizeof(CONFIG->debug)    - 1] = '\0';
 
     json_object_put(parsed_json); //free parsed_json
