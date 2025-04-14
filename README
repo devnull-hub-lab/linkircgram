@@ -1,13 +1,14 @@
-A server-side relayer between IRC Server x Telegram Groups
-linkircgram is a service that spawn each user of telegram group on the IRC channel
-
-NOTE: Tested on FreeBSD. But it will beGNU/Linux compatible soon.
-
 (In Development - WIP) Not Functional yet!!
+
+A server-side relayer between IRC Server x Telegram Groups
+linkirctelegram is a service that spawn each user of telegram group on the IRC channel
+
+NOTE: Tested on FreeBSD. But it will be GNU/Linux compatible soon.
 
 Install from source
 
 1. First, make sure the following dependencies are met:
  - json-c
 
-cc -g -O0 -I/usr/local/include/ link.c parsing.c -o link -L/usr/local/lib -ljson-c
+2. Build (some directories may be adjusted depending OS - defaults to FreeBSD). Makefile will be writen
+cc -g -O0 -I/usr/local/include/ link.c parsing.c telegram.c -o link -L/usr/local/lib -ljson-c -lcurl
