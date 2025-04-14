@@ -1,13 +1,13 @@
 {
     "irc-protocol": "unrealircd",
     "irc-sid": "002",
-    "irc-linkname": "apt322.mylink",
+    "irc-linkname": "mylink",
     "irc-host": "127.0.0.1",
     "irc-port": "6900",
-    "irc-password": "minhasenha",
-    "irc-channel": "#testchannel",
-    "telegram-bot": "mybot",
-    "telegram-gid": "telegram_group_id",
-    "telegram-topic": "telegram_group_topic",
+    "irc-password": "mysecretpassword",
+    "irc-channel": "#channel",
+    "telegram-token": "7509957655:AA...",
+    "telegram-gid": "-100223...",
+    "telegram-topic": "729",
     "debug": "true"
 }

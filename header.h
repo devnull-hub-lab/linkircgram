@@ -46,15 +46,16 @@ typedef struct {
     char password[50]; //TODO: check length later
     char protocol[15];
     char channel[CHANLEN];
-    char bot[10]; //TODO: check length later
-    char gid[25]; //TODO: check length later
-    char topic[10]; //TODO: check length later
+    char token[50];
+    char gid[20];
+    char topic[10];
     char debug[6];
 } stparsing_conf;
 
-int  spawn_user   (int sock, char *buffer, size_t bufferlen, stuid_structure *UID, int count_uid_list);
+int  spawn_user (int sock, char *buffer, size_t bufferlen, stuid_structure *UID, int count_uid_list);
 void generate_uid (char *, char *uid);
 int  parsing_conf (stparsing_conf *CONFIG);
+void send_instagram_message(stparsing_conf *CONFIG, char *uid_nick, char *channel_uid, char *msg);
+short parse_privmsg_buf(char *buffer, char **uid_nick, char **channel_uid, char **msg);
 
 #endif
-

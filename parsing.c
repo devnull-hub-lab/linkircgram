@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <json-c/json.h>
-#include <string.h>
 
 #include "header.h"
 
@@ -30,7 +27,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
     struct json_object *parsed_json = json_tokener_parse(data);
     
     struct json_object *jsid, *jlinkname, *jhost, *jport, *jpassword, *jprotocol, *jchannel, *jdebug;
-    struct json_object *jbot, *jgid, *jtopic;
+    struct json_object *jtoken, *jgid, *jtopic;
 
     free(data);
 
@@ -47,7 +44,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
     json_object_object_get_ex(parsed_json, "irc-protocol", &jprotocol);
     json_object_object_get_ex(parsed_json, "irc-channel",  &jchannel);
 
-    json_object_object_get_ex(parsed_json, "telegram-bot",   &jbot);
+    json_object_object_get_ex(parsed_json, "telegram-token", &jtoken);
     json_object_object_get_ex(parsed_json, "telegram-gid",   &jgid);
     json_object_object_get_ex(parsed_json, "telegram-topic", &jtopic);
 
@@ -83,9 +80,9 @@ int parsing_conf(stparsing_conf *CONFIG) {
     if (isnotnull)
         strncpy(CONFIG->channel, json_object_get_string(jchannel), sizeof(CONFIG->channel) - 1);
 
-    isnotnull = json_object_get_string(jbot);
+    isnotnull = json_object_get_string(jtoken);
     if (isnotnull)
-        strncpy(CONFIG->bot, json_object_get_string(jbot), sizeof(CONFIG->bot) - 1);
+        strncpy(CONFIG->token, json_object_get_string(jtoken), sizeof(CONFIG->token) - 1);
 
     isnotnull = json_object_get_string(jgid);
     if (isnotnull)
@@ -107,7 +104,7 @@ int parsing_conf(stparsing_conf *CONFIG) {
     CONFIG->password[sizeof(CONFIG->password) - 1] = '\0';
     CONFIG->protocol[sizeof(CONFIG->protocol) - 1] = '\0';
     CONFIG->channel [sizeof(CONFIG->channel)  - 1] = '\0';
-    CONFIG->bot     [sizeof(CONFIG->bot)      - 1] = '\0';
+    CONFIG->token   [sizeof(CONFIG->token)    - 1] = '\0';
     CONFIG->gid     [sizeof(CONFIG->gid)      - 1] = '\0';
     CONFIG->topic   [sizeof(CONFIG->topic)    - 1] = '\0';
     CONFIG->debug   [sizeof(CONFIG->debug)    - 1] = '\0';

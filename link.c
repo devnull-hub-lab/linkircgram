@@ -39,7 +39,7 @@ int main() {
     send(sock, buffer, strlen(buffer), 0);
 
     sleep(2); //Wait server buffer response
-
+    
     stuid_structure *tempalloc_UID = realloc(UID, count_uid_list + 1 * sizeof(stuid_structure));
     if (tempalloc_UID != NULL)
         UID = tempalloc_UID;
@@ -59,7 +59,7 @@ int main() {
     snprintf(vhost_buff, sizeof(vhost_buff), "%s.over.telegram", UID[count_uid_list].nick);
     UID[count_uid_list].vhost = strdup(vhost_buff);
 
-    //UID ...
+    //Introducing UID ...
     spawn_user(sock, buffer, sizeof(buffer), UID, count_uid_list);
 
     sleep(1);
@@ -80,19 +80,41 @@ int main() {
 
         if (strncmp(CONFIG.debug, "true", 4) == 0)
             printf("[Server] %s\n", buffer);
-
+        
         if (strncmp(buffer, "PING", 4) == 0) {
             char pong_reply[256];
             char *ping_data = strchr(buffer, ':');
             if (ping_data) {
                 snprintf(pong_reply, sizeof(pong_reply), "PONG %s\r\n", ping_data);
                 send(sock, pong_reply, strlen(pong_reply), 0);
-                //printf("[+] PONG sent: %s", pong_reply);
+                if (strncmp(CONFIG.debug, "true", 4) == 0)
+                    printf("[+] PONG sent: %s", pong_reply);
             }
         }
-        
-        //TODO:.....
-    
+
+        //Intercept IRC messages
+        if (strstr(buffer, "PRIVMSG") != NULL) {
+            char *privmsg_data = strchr(buffer, ':');
+            if (privmsg_data) {
+                char *uid_nick, *channel_uid, *msg;
+
+                short ret = parse_privmsg_buf(buffer, &uid_nick, &channel_uid, &msg);
+
+                if (strncmp(CONFIG.debug, "true", 4) == 0) {
+                    printf("uid-nick: %s\n", uid_nick);
+                    printf("channel: %s\n", channel_uid);
+                    printf("msg: %s\n", msg);
+                }
+                
+                if (!ret)
+                    send_instagram_message(&CONFIG, uid_nick, channel_uid, msg);
+                
+                if (uid_nick)    free(uid_nick);
+                if (channel_uid) free(channel_uid);
+                if (msg)         free(msg);
+
+            }
+        }
     } //while_conn
     close(sock);
 
@@ -141,4 +163,31 @@ void generate_uid(char *sid, char *uid) {
         uid[count] = hex_chars[mod];
     }
     uid[UIDLEN - 1] = '\0';
+}
+//---------------------------------------------------------------------------------------
+// Parse privmsg buffer to vars
+//---------------------------------------------------------------------------------------
+short parse_privmsg_buf(char *buffer, char **uid_nick, char **channel_uid, char **msg) {
+
+    //UID or NICK
+    //Somehow, privmmsg to channel uses nick, but privmsg to someone uses UID
+    char *space = strchr(buffer, ' ');
+    if (!space) return 1;
+    size_t len = space - buffer;
+    *uid_nick = strndup(buffer + 1, len); //ignore first :
+
+    space += 1;
+    if (strncmp(space, "PRIVMSG ", 8) != 0) return 1;
+
+    char *secondparam = space + 8;
+    space = strchr(secondparam, ' ');
+    if (!space) return 1;
+    len = space - secondparam;
+    *channel_uid = strndup(secondparam, len);
+
+    char *colon = strchr(space, ':');
+    if (!colon) return 1;
+
+    *msg = strdup(colon + 1);
+    return 0;
 }
