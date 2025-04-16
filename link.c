@@ -1,10 +1,13 @@
 #include "header.h"
 
+#include <sys/select.h> //TODO: Change later - Use kqueue for FreeBSD
+
 int main() {
+    char buffer[BUFFER_SIZE];
     int sock, len;
     struct sockaddr_in server_addr;
-    char buffer[BUFFER_SIZE];
-
+    memset(&server_addr, 0, sizeof(server_addr));
+    
     stuid_structure *UID = NULL;
     int count_uid_list = 0; //Should be < MAX_UID_LIST
     char uid[UIDLEN];
@@ -26,60 +29,49 @@ int main() {
         return 1;
     }
 
-    snprintf(buffer, sizeof(buffer), "PASS :%s\r\n", CONFIG.password);
-    send(sock, buffer, strlen(buffer), 0);
+    //TODO: Test compatibility with others ircds, at least: inspircd, ergo, solanum
+    if (memcmp(CONFIG.protocol, "unrealircd", 10) == 0) {
+        snprintf(buffer, sizeof(buffer), "PASS :%s\r\n", CONFIG.password);
+        send(sock, buffer, strlen(buffer), 0);
 
-    snprintf(buffer, sizeof(buffer), "PROTOCTL EAUTH=%s SID=%s\r\n", CONFIG.linkname, CONFIG.sid);
-    send(sock, buffer, strlen(buffer), 0);
+        snprintf(buffer, sizeof(buffer), "PROTOCTL EAUTH=%s SID=%s\r\n", CONFIG.linkname, CONFIG.sid);
+        send(sock, buffer, strlen(buffer), 0);
 
-    snprintf(buffer, sizeof(buffer), "PROTOCTL SJOIN SJ3 CLK NOQUIT NICKv2 VL UMODE2 PROTOCTL NICKIP VHP ESVID EXTSWHOIS TKLEXT2 NEXTBANS\r\n");
-    send(sock, buffer, strlen(buffer), 0);
+        snprintf(buffer, sizeof(buffer), "PROTOCTL SJOIN SJ3 CLK NOQUIT NICKv2 VL UMODE2 PROTOCTL NICKIP VHP ESVID EXTSWHOIS TKLEXT2 NEXTBANS\r\n");
+        send(sock, buffer, strlen(buffer), 0);
 
-    snprintf(buffer, sizeof(buffer), "SERVER %s 1 U6-linkircgram-%s :LinkIRCGram\r\n", CONFIG.linkname, CONFIG.sid);
-    send(sock, buffer, strlen(buffer), 0);
-
-    sleep(2); //Wait server buffer response
+        snprintf(buffer, sizeof(buffer), "SERVER %s 1 U6-linkircgram-%s :LinkIRCGram\r\n", CONFIG.linkname, CONFIG.sid);
+        send(sock, buffer, strlen(buffer), 0);
+    }
     
-    stuid_structure *tempalloc_UID = realloc(UID, count_uid_list + 1 * sizeof(stuid_structure));
-    if (tempalloc_UID != NULL)
-        UID = tempalloc_UID;
-
-    generate_uid(CONFIG.sid, uid);
+    sleep(1); //Wait server buffer reply
     
-    //TODO: Just fake user to test.
-    //Data will be filled after fetch each telegram user id
-    UID[count_uid_list].timestamp = (long)time(NULL);
-    UID[count_uid_list].nick      = strdup("nick1");
-    UID[count_uid_list].user      = strdup("user1");
-    UID[count_uid_list].host      = strdup("services.host");
-    UID[count_uid_list].uid       = strdup(uid);
+    curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    len = strlen(UID[count_uid_list].nick);
-    char vhost_buff[len + 15];
-    snprintf(vhost_buff, sizeof(vhost_buff), "%s.over.telegram", UID[count_uid_list].nick);
-    UID[count_uid_list].vhost = strdup(vhost_buff);
+    stuid_structure *tempalloc_UID = NULL;
 
-    //Introducing UID ...
-    spawn_user(sock, buffer, sizeof(buffer), UID, count_uid_list);
-
-    sleep(1);
-
-    time_t timestamp = time(NULL);
-    len = snprintf(buffer, sizeof(buffer), "SJOIN %ld %s +nt :%s\r\n", (long)timestamp, CONFIG.channel, UID[count_uid_list].uid);
-    send(sock, buffer, len, 0);
-
-    count_uid_list++;
-
-    while (1) {
-        len = recv(sock, buffer, sizeof(buffer) -1, 0);
-        buffer[len] = '\0';
-        if (len <= 0) {
-            printf("[!] Connection Lost\n");
-            break;
+    fd_set read_fds;
+    struct timeval timeout;
+    //TODO: Loop after implement last_update
+    if (1) {
+        FD_ZERO(&read_fds);
+        FD_SET(sock, &read_fds);
+        timeout.tv_sec = 1; //1 sec
+        timeout.tv_usec = 0;
+    
+        int ready = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready > 0 && FD_ISSET(sock, &read_fds)) {
+            len = recv(sock, buffer, sizeof(buffer) - 1, 0);
+            if (len <= 0) {
+                printf("[!] Connection Lost! \n");
+                //break;
+            }
+            buffer[len] = '\0';
+            if (strncmp(CONFIG.debug, "true", 4) == 0)
+                printf("Received: %s\n", buffer);
         }
 
-        if (strncmp(CONFIG.debug, "true", 4) == 0)
-            printf("[Server] %s\n", buffer);
+        long long last_update_id = 0;
         
         if (strncmp(buffer, "PING", 4) == 0) {
             char pong_reply[256];
@@ -92,8 +84,88 @@ int main() {
             }
         }
 
-        //Intercept IRC messages
-        if (strstr(buffer, "PRIVMSG") != NULL) {
+        //Intercept telegram messages, to spawn and/or relay messages
+        struct string response;
+        telegram_message *msg_array = NULL;
+
+        if (fetch_telegram_updates_raw(&CONFIG, &response) == 0) {
+            short total_msgs = parse_telegram_updates(response.data, &msg_array, &last_update_id);
+            free(response.data);
+
+            for (short index_json = 0; index_json < total_msgs; index_json++) 
+            {
+                if (strncmp(CONFIG.debug, "true", 4) == 0)
+                    printf("Sending message to IRC: %s\n", msg_array[index_json].text);
+                
+                //last_update_id = msg_array[i].update_id;
+
+                int located_uid = -1;
+            
+                if (count_uid_list != 0)
+                    search_user_on_irc(UID, count_uid_list, &located_uid, msg_array[index_json].user_id);
+                
+                if (located_uid >= 0) {
+                    remove_rn(msg_array[index_json].text);
+                    snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[located_uid].nick, CONFIG.channel, msg_array[index_json].text);
+                    send(sock, buffer, strlen(buffer), 0);
+                }
+                else //introduce new user
+                {
+                    tempalloc_UID = realloc(UID, (count_uid_list + 1) * sizeof(stuid_structure));
+                    if (tempalloc_UID != NULL)
+                        UID = tempalloc_UID;
+            
+                    generate_uid(CONFIG.sid, uid);
+                
+                    char full_nick[NICKLEN];
+                    snprintf(full_nick, sizeof(full_nick), "%s%s",  msg_array[index_json].first_name,  msg_array[index_json].last_name);
+                    sanitize_text(full_nick);
+                    if (isdigit(full_nick[0])) //first UID digit must be numeric, so nick can't
+                      full_nick[0] = '_';
+                    
+                    UID[count_uid_list].timestamp = (long)time(NULL);
+                    UID[count_uid_list].nick      = strdup(full_nick);
+                    UID[count_uid_list].host      = strdup("services.link");
+                    UID[count_uid_list].uid       = strdup(uid);
+    
+                    char user_id_str[32];
+                    snprintf(user_id_str, sizeof(user_id_str), "%lld",  msg_array[index_json].user_id);
+                    UID[count_uid_list].user = strdup(user_id_str);
+            
+                    len = strlen(UID[count_uid_list].nick);
+                    char vhost_buff[len + 15];
+                    snprintf(vhost_buff, sizeof(vhost_buff), "%s.over.telegram", UID[count_uid_list].nick);
+                    UID[count_uid_list].vhost = strdup(vhost_buff);
+    
+                    //Introducing UID ...
+                    spawn_user(sock, buffer, sizeof(buffer), UID, count_uid_list);
+            
+                    sleep(1); //wait server response after UID
+            
+                    time_t timestamp = time(NULL);
+                    len = snprintf(buffer, sizeof(buffer), "SJOIN %ld %s +nt :%s\r\n", (long)timestamp, CONFIG.channel, UID[count_uid_list].uid);
+                    send(sock, buffer, len, 0);
+    
+                    sleep(1); //wait server response before sending messages
+    
+                    //mtag relay=y, so this message won't be intercepted by this link
+                    remove_rn( msg_array[index_json].text);
+                    snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[count_uid_list].nick, CONFIG.channel,  msg_array[index_json].text);
+                    send(sock, buffer, strlen(buffer), 0);
+            
+                    count_uid_list++;
+                }
+                free(msg_array[index_json].first_name);
+                free(msg_array[index_json].last_name);
+                free(msg_array[index_json].text);
+            }
+            if (msg_array)
+                free(msg_array);
+        } //fetch_telegram_updates_raw end
+
+        //Intercept IRC messages, unless mtag relay=y is set
+        //TODO: Check if other mtag is set
+        if (strstr(buffer, "PRIVMSG") != NULL && strstr(buffer, "@") == NULL) {
             char *privmsg_data = strchr(buffer, ':');
             if (privmsg_data) {
                 char *uid_nick, *channel_uid, *msg;
@@ -116,6 +188,9 @@ int main() {
             }
         }
     } //while_conn
+
+    curl_global_cleanup();
+
     close(sock);
 
     for (unsigned int count = 0; count < count_uid_list; count++) {
@@ -139,8 +214,9 @@ int spawn_user(int sock, char *buffer, size_t bufferlen, stuid_structure *UID, i
 
     //UnrealIRCD
     //nickname - hop - timestamp - username - hostname - uid - servicetimestamp - umodes - vhost - cloakedhost - ip - gecos
-    int len = snprintf(buffer, bufferlen, "UID %s 1 %ld %s %s %s 0 +iwx %s Clk-BA0161F4.host * :Nickname1 Registration Service\r\n",
-                                 UID[index].nick, (long)timestamp, UID[index].user, UID[index].host, UID[index].uid, UID[index].vhost);
+    int len = snprintf(buffer, bufferlen,
+                       "UID %s 1 %ld %s %s %s 0 +iwx %s Clk-%s.link * :%s on Telegram\r\n",
+                       UID[index].nick, (long)timestamp, UID[index].user, UID[index].host, UID[index].uid, UID[index].vhost, UID[index].uid, UID[index].nick);
 
     send(sock, buffer, len, 0);
 
@@ -171,23 +247,69 @@ short parse_privmsg_buf(char *buffer, char **uid_nick, char **channel_uid, char 
 
     //UID or NICK
     //Somehow, privmmsg to channel uses nick, but privmsg to someone uses UID
+    if (buffer[0] == '@') { //TODO: I should check other mtag
+        char *space_after_tag = strchr(buffer, ' ');
+        if (!space_after_tag)
+            return 1;
+        
+        buffer = space_after_tag + 1;
+    }
+
     char *space = strchr(buffer, ' ');
-    if (!space) return 1;
-    size_t len = space - buffer;
-    *uid_nick = strndup(buffer + 1, len); //ignore first :
+    if (!space || buffer[0] != ':')
+        return 1;
+
+    size_t len = space - buffer - 1;
+    *uid_nick = strndup(buffer + 1, len);
 
     space += 1;
-    if (strncmp(space, "PRIVMSG ", 8) != 0) return 1;
+    if (strncmp(space, "PRIVMSG ", 8) != 0)
+        return 1;
 
     char *secondparam = space + 8;
     space = strchr(secondparam, ' ');
-    if (!space) return 1;
+    if (!space)
+        return 1;
+
     len = space - secondparam;
     *channel_uid = strndup(secondparam, len);
 
     char *colon = strchr(space, ':');
-    if (!colon) return 1;
+    if (!colon)
+        return 1;
 
     *msg = strdup(colon + 1);
+
     return 0;
+}
+//---------------------------------------------------------------------------------------
+// TODO: Use Hash table
+void search_user_on_irc(stuid_structure *UID, int count_uid_list, int *located_uid, long long user_id) {
+    
+    char username[32];
+    snprintf(username, sizeof(username), "%lld", user_id);
+
+    for (int index = 0; index < count_uid_list; index++) {
+        if (strcmp(UID[index].user, username) == 0)
+            *located_uid = index;
+    }
+}
+//---------------------------------------------------------------------------------------
+//Nicks must contain 0-9, a-z, A-z
+void sanitize_text(char *text) {
+    for (char *c = text; *c; ++c) {
+        if (!( (*c >= '0' && *c <= '9') ||
+               (*c >= 'A' && *c <= 'Z') ||
+               (*c >= 'a' && *c <= 'z') )) {
+            *c = '_';
+        }
+    }
+}
+//---------------------------------------------------------------------------------------
+//To avoid message cut after \r\n
+void remove_rn(char *text) {
+    for (char *c = text; *c != '\0'; ++c) {
+        if (*c == '\r' || *c == '\n')
+            *c = '_';
+    }
 }
