@@ -95,7 +95,7 @@ int main() {
             for (short index_json = 0; index_json < total_msgs; index_json++) 
             {
                 if (strncmp(CONFIG.debug, "true", 4) == 0)
-                    printf("Sending message to IRC: %s\n", msg_array[index_json].text);
+                    printf("Received %lld message ID from GID %lld thread %lld: %s\n", msg_array[index_json].update_id, msg_array[index_json].chat_id, msg_array[index_json].thread_id, msg_array[index_json].text);
                 
                 //last_update_id = msg_array[i].update_id;
 
@@ -106,8 +106,20 @@ int main() {
                 
                 if (located_uid >= 0) {
                     remove_rn(msg_array[index_json].text);
-                    snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[located_uid].nick, CONFIG.channel, msg_array[index_json].text);
-                    send(sock, buffer, strlen(buffer), 0);
+
+                    for (int index = 0; index < CONFIG.mapping_count; index++) {
+                        if (strtoll(CONFIG.mappings[index].telegram_gid,   NULL, 10) == msg_array[index_json].chat_id &&
+                            strtoll(CONFIG.mappings[index].telegram_topic, NULL, 10) == msg_array[index_json].thread_id)
+                        {
+                            snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[located_uid].nick, CONFIG.mappings[index].irc_channel, msg_array[index_json].text);
+                            send(sock, buffer, strlen(buffer), 0);
+
+                            if (strncmp(CONFIG.debug, "true", 4) == 0)
+                                printf("Sending %lld message ID from GID %lld thread %lld: %s\n", msg_array[index_json].update_id, msg_array[index_json].chat_id, msg_array[index_json].thread_id, msg_array[index_json].text);
+
+                            break;
+                        }
+                    }
                 }
                 else //introduce new user
                 {
@@ -143,16 +155,34 @@ int main() {
                     sleep(1); //wait server response after UID
             
                     time_t timestamp = time(NULL);
-                    len = snprintf(buffer, sizeof(buffer), "SJOIN %ld %s +nt :%s\r\n", (long)timestamp, CONFIG.channel, UID[count_uid_list].uid);
-                    send(sock, buffer, len, 0);
-    
+                    
+                    for (int index = 0; index < CONFIG.mapping_count; index++) {
+                        if (strtoll(CONFIG.mappings[index].telegram_gid,   NULL, 10)   == msg_array[index_json].chat_id &&
+                            strtoll(CONFIG.mappings[index].telegram_topic, NULL, 10) == msg_array[index_json].thread_id) {
+                            len = snprintf(buffer, sizeof(buffer), "SJOIN %ld %s +nt :%s\r\n", (long)timestamp, CONFIG.mappings[index].irc_channel, UID[count_uid_list].uid);
+                            send(sock, buffer, len, 0);
+                            break;
+                        }
+                    }
+                    
                     sleep(1); //wait server response before sending messages
     
                     //mtag relay=y, so this message won't be intercepted by this link
                     remove_rn( msg_array[index_json].text);
-                    snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[count_uid_list].nick, CONFIG.channel,  msg_array[index_json].text);
-                    send(sock, buffer, strlen(buffer), 0);
-            
+                    
+                    for (int index = 0; index < CONFIG.mapping_count; index++) {
+                        if (strtoll(CONFIG.mappings[index].telegram_gid,   NULL, 10) == msg_array[index_json].chat_id &&
+                            strtoll(CONFIG.mappings[index].telegram_topic, NULL, 10) == msg_array[index_json].thread_id) {
+                            snprintf(buffer, sizeof(buffer), "@relay=y :%s PRIVMSG %s :%s\r\n", UID[count_uid_list].nick, CONFIG.mappings[index].irc_channel,  msg_array[index_json].text);
+                            send(sock, buffer, strlen(buffer), 0);
+
+                            if (strncmp(CONFIG.debug, "true", 4) == 0)
+                                printf("Sending %lld message ID from GID %lld thread %lld: %s\n", msg_array[index_json].update_id, msg_array[index_json].chat_id, msg_array[index_json].thread_id, msg_array[index_json].text);
+
+                            break;
+                        }
+                    }
+
                     count_uid_list++;
                 }
                 free(msg_array[index_json].first_name);
@@ -201,6 +231,11 @@ int main() {
         free(UID[count].uid);
     }
     free(UID);
+
+    if (CONFIG.mappings != NULL) {
+        free(CONFIG.mappings);
+        CONFIG.mappings = NULL;
+    }
 
     return 0;
 }
@@ -313,3 +348,4 @@ void remove_rn(char *text) {
             *c = '_';
     }
 }
+

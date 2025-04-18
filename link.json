@@ -1,13 +1,22 @@
 {
     "irc-protocol": "unrealircd",
     "irc-sid": "002",
-    "irc-linkname": "mylink",
+    "irc-linkname": "myserver.mylink",
     "irc-host": "127.0.0.1",
     "irc-port": "6900",
     "irc-password": "mysecretpassword",
-    "irc-channel": "#channel",
-    "telegram-token": "7509957655:AA...",
-    "telegram-gid": "-100223...",
-    "telegram-topic": "729",
-    "debug": "true"
+    "telegram-token": "750xxxxx:AAF...",
+    "debug": "true",
+    "channel-mappings": [
+        {
+            "telegram-gid": "-100...",
+            "irc-channel": "#testchannel",
+            "telegram-topic": "702"
+        },
+        {
+            "telegram-gid": "-100...",
+            "irc-channel": "#testchannel2",
+            "telegram-topic": "79"
+        }
+    ]
 }

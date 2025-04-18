@@ -22,10 +22,16 @@ void send_instagram_message(stparsing_conf *CONFIG, char *uid_nick, char *channe
         curl_easy_cleanup(curl);
         return;
     }
+    
+    for (int index = 0; index < CONFIG->mapping_count; index++) {
+        if (strncmp(CONFIG->mappings[index].irc_channel, channel_uid, 32) == 0) {
+            snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&message_thread_id=%s&text=%s",
+                     CONFIG->token, CONFIG->mappings[index].telegram_gid, CONFIG->mappings[index].telegram_topic, escaped_msg);
+            break;
+        }
+    }
+    
 
-    //TODO:Define chat_id = channel_uid:thread_id
-    snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s",
-                                CONFIG->token, CONFIG->gid, escaped_msg);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "LinkBot/1.0");
@@ -164,3 +170,4 @@ size_t writecurl(void *data, size_t size, size_t qt_items, struct string *s) {
     s->len = new_len;
     return size * qt_items;
 }
+

@@ -23,6 +23,8 @@
 #define PORTLEN  5 + 1
 #define SIDLEN   3 + 1
 
+#define MAX_MAPPINGS 32
+
 #define MAX_UID_LIST 6777216 //16^6 = SID + 6 hex chars
 
 typedef struct {
@@ -41,17 +43,23 @@ typedef struct {
 } stuid_structure;
 
 typedef struct {
+    char telegram_gid[32];
+    char irc_channel[CHANLEN];
+    char telegram_topic[32];
+} stchannel_mapping;
+
+typedef struct {
     char sid[SIDLEN];
     char linkname[25]; //TODO: check length later
     char host[HOSTLEN];
     char port[PORTLEN];
     char password[50]; //TODO: check length later
     char protocol[15];
-    char channel[CHANLEN];
     char token[50];
-    char gid[32];
-    char topic[32];
     char debug[6];
+
+    stchannel_mapping *mappings;
+    int mapping_count;
 } stparsing_conf;
 
 struct string {
@@ -84,3 +92,4 @@ int   fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response
 short parse_telegram_updates(const char *json_str, telegram_message **out_msgs, long long *last_update_id);
 
 #endif
+
