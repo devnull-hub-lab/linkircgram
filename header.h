@@ -23,9 +23,12 @@
 #define PORTLEN  5 + 1
 #define SIDLEN   3 + 1
 
-#define MAX_MAPPINGS 32
-
 #define MAX_UID_LIST 6777216 //16^6 = SID + 6 hex chars
+
+typedef struct {
+    char **channels;
+    int channel_count;
+} stchannel_list;
 
 typedef struct {
 	char *nick;
@@ -34,12 +37,7 @@ typedef struct {
     char *host;
     char *vhost;
     char *uid;
-    //servicestamp
-    //umodes
-    //virthost
-    //cloakedhost
-    //ip
-    //gecos
+    stchannel_list chanlist;
 } stuid_structure;
 
 typedef struct {
@@ -85,11 +83,14 @@ short  parse_privmsg_buf(char *buffer, char **uid_nick, char **channel_uid, char
 void   parse_updates(const char *json_str);
 size_t writecurl(void *data, size_t size, size_t qt_items, struct string *s);
 void   search_user_on_irc(stuid_structure *UID, int count_uid_list, int *located_uid, long long user_id);
+int add_channel_to_user(stuid_structure *user, const char *channel);
+int remove_user_from_channel(stuid_structure *user, const char *channel);
+int user_already_in_channel(const stuid_structure *user, const char *channel);
 void   sanitize_text(char *text);
 void   remove_rn(char *text);
 
-int   fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response);
-short parse_telegram_updates(const char *json_str, telegram_message **out_msgs, long long *last_update_id);
+int   fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response, long long *offset);
+short parse_telegram_updates(const char *json_str, telegram_message **out_msgs);
 
 #endif
 

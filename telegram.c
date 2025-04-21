@@ -45,7 +45,7 @@ void send_instagram_message(stparsing_conf *CONFIG, char *uid_nick, char *channe
     curl_easy_cleanup(curl);
 }
 //---------------------------------------------------------------------------------------
-int fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response) {
+int fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response, long long *offset) {
     CURL *curl;
     CURLcode ret;
     char url[256];
@@ -53,13 +53,7 @@ int fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response) 
     if (CONFIG == NULL || response == NULL)
         return -1;
 
-    snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/getUpdates", CONFIG->token);
-    
-    //TODO:Implement last_update_id
-    //if (*last_update_id > 0)
-    //    snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/getUpdates?offset=%lld", CONFIG->token, (*last_update_id + 1));
-    //else
-    //snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/getUpdates", CONFIG->token);
+    snprintf(url, sizeof(url), "https://api.telegram.org/bot%s/getUpdates?offset=%lld", CONFIG->token, (*offset + 1));
 
     curl = curl_easy_init();
     if (!curl) {
@@ -82,7 +76,7 @@ int fetch_telegram_updates_raw(stparsing_conf *CONFIG, struct string *response) 
     return (ret == CURLE_OK) ? 0 : -1;
 }
 //---------------------------------------------------------------------------------------
-short parse_telegram_updates(const char *json_str, telegram_message **out_msgs, long long *last_update_id)
+short parse_telegram_updates(const char *json_str, telegram_message **out_msgs)
 {    
     struct json_object *parsed_json, *result_array;
     parsed_json = json_tokener_parse(json_str);
@@ -142,10 +136,7 @@ short parse_telegram_updates(const char *json_str, telegram_message **out_msgs, 
             if (json_object_object_get_ex(message, "message_thread_id", &threadid))
                 msg->thread_id = json_object_get_int64(threadid);
             else
-                msg->thread_id = -1;
-
-            //if (last_update_id)
-            //    *last_update_id = msg->update_id;
+                msg->thread_id = 0;
 
             total_msgs++;
         }
