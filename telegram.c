@@ -2,8 +2,8 @@
 
 #include "header.h"
 
-void send_instagram_message(stparsing_conf *CONFIG, char *uid_nick, char *channel_uid, char *msg) {
-    char url[256];
+void send_telegram_message(stparsing_conf *CONFIG, char *uid_nick, char *channel_uid, char *msg) {
+    char url[2048];
 
     CURL *curl = curl_easy_init();
     if (!curl) {
@@ -161,4 +161,3 @@ size_t writecurl(void *data, size_t size, size_t qt_items, struct string *s) {
     s->len = new_len;
     return size * qt_items;
 }
-

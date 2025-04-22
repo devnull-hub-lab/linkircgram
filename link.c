@@ -49,6 +49,8 @@ int main()
     
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
+    join_linkserv_channels();
+    
     stuid_structure *tempalloc_UID = NULL;
 
     fd_set read_fds;
@@ -73,11 +75,8 @@ int main()
             }
             buffer[len] = '\0';
             if (strncmp(CONFIG.debug, "true", 4) == 0)
-                printf("Received ON: %s\n", buffer);
+                printf("Received ON Buffer: %s\n", buffer);
         }
-
-        if (strncmp(CONFIG.debug, "true", 4) == 0)
-                printf("Received OFF: %s\n", buffer);
         
         if (strncmp(buffer, "PING", 4) == 0) {
             char pong_reply[256];
@@ -214,6 +213,7 @@ int main()
 
         /* Intercept IRC messages, unless mtag relay=y is set */
         //TODO: Check if other mtag is set
+
         if (strstr(buffer, "PRIVMSG") != NULL && strstr(buffer, "@") == NULL) {
             char *privmsg_data = strchr(buffer, ':');
             if (privmsg_data) {
@@ -228,7 +228,7 @@ int main()
                     }
                     
                     if (!ret)
-                        send_instagram_message(&CONFIG, uid_nick, channel_uid, msg);
+                        send_telegram_message(&CONFIG, uid_nick, channel_uid, msg);
                     
                     if (uid_nick)    free(uid_nick);
                     if (channel_uid) free(channel_uid);
@@ -241,8 +241,7 @@ int main()
 
     close(sock);
 
-    for (unsigned int count_uid = 0; count_uid < count_uid_list; count_uid++)
-    {
+    for (unsigned int count_uid = 0; count_uid < count_uid_list; count_uid++) {
         for (int index = 0; index < UID[count_uid].chanlist.channel_count; index++)
         {
             free(UID[count_uid].chanlist.channels[index]);
@@ -272,6 +271,14 @@ int main()
     return 0;
 }
 //---------------------------------------------------------------------------------------
+/*
+ * Make LinkServ join the channels related to link.json
+ * It is necessary so that PRIVMSG will be intercepted on these channels and will be send to telegram
+ */
+void join_linkserv_channels()
+{
+
+}
 /*
  * Introducing new user on the server (without channel join)
  * S2S protocol commands used: UID, MD
@@ -462,3 +469,4 @@ void remove_rn(char *text)
             *c = '_';
     }
 }
+
